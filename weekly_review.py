@@ -115,6 +115,7 @@ def clean_body(email_body):
 inbox = ns.GetDefaultFolder(6)
 messages = inbox.Items
 messages.Sort("[ReceivedTime]", True)
+messages = messages.Restrict("[Start] >= '" +begin+ "'")
 
 msgDict = {}
 item = 0
@@ -127,10 +128,6 @@ for msg in messages:
     time = msg.SentOn.time()
     body = str(msg.Body.encode("utf8"))
     body = clean_body(body)
-    if date>date.today()- datetime.timedelta(days=7):
-        category = 'Aging: Within 7 days'
-    else: 
-        category = 'Aging: More than 7 days old'
     
     msgDict[item] = {
         'Subject': subject, 
@@ -138,8 +135,7 @@ for msg in messages:
         'Sender': sender,
         'Date': date.strftime('%m/%d/%Y'),
         'Time': time.strftime('%H:%M:%S'),
-        'Message': body,
-        'Aging Category': category
+        'Message': body
     }
     item = item + 1
 
