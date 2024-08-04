@@ -23,25 +23,36 @@ def main():
     )
     
     st.set_page_config(page_title = "AI Agent")
-    st.title("Alice's AI Agent")    
+    st.title("Alice's AI Agent #1 - Chat with CSV or PDF File")    
 
-    user_csv = st.file_uploader("Upload your CSV file", type ="csv", key=1)
-    user_pdf = st.file_uploader("Upload your PDF file", type ="pdf", key=2)
-
-    if user_csv is not None:
-        user_question = st.text_input("Ask a question about your csv file: ")
-
-        agent = create_csv_agent(llm, user_csv, verbose = True,allow_dangerous_code=True)
+    user_upload = st.file_uploader("Upload your CSV or PDF file", type =["csv","pdf"])
+  
+    if user_upload is not None and user_upload.type not in ["text/csv","pdf"] : 
+        st.write("Pleas upload a CSV or PDF file")
+        
+    if user_upload is not None and user_upload.type == "text/csv": 
+        user_question = st.text_input("Ask a question about your CSV file: ") 
+    
+        agent = create_csv_agent(
+            llm, user_upload, 
+            verbose = True,
+            allow_dangerous_code=True,
+            return_intermediate_steps=True        
+        )
 
         if user_question is not None and user_question !="":
-            response = agent.run(user_question)
-            st.write(response)
-
-    if user_pdf is not None:
+            response = agent({"input": user_question})
+            st.write(response["output"])
+            st.divider()
+            st.subheader("My thought process")
+            st.markdown(response["intermediate_steps"][0][0])
+            st.write(response["intermediate_steps"][0][1])
+    
+    if user_upload is not None and user_upload.type=="application/pdf": 
         temp_file = "./temp.pdf"
         with open(temp_file, "wb") as file:
-            file.write(user_pdf.getvalue())
-            file_name = user_pdf.name
+            file.write(user_upload.getvalue())
+            file_name = user_upload.name
             
         pdf_loader = PyPDFLoader(temp_file)
         pages = pdf_loader.load_and_split()
@@ -80,3 +91,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
