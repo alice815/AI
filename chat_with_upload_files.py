@@ -76,7 +76,7 @@ def main():
 
         if user_question is not None and user_question !="":
             response = qa_chain(user_question)
-            st.write(response)
+            st.write(response["result"])
 
 if __name__ == "__main__":
     main()
