@@ -60,7 +60,7 @@ Markdown(chat.last.text)
 outlook = win32com.client.Dispatch('Outlook.Application')
 response=chat.last.text
 mail = outlook.CreateItem(0)
-mail.To = os.getenv(MY_EMAIL)
+mail.To = os.getenv('MY_EMAIL')
 mail.Subject = response.partition('\n')[0]
 mail.Body = str(response)
 mail.Send()
