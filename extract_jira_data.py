@@ -18,26 +18,18 @@ jira_server=os.getenv('JIRA_SERVER')
 jiraOptions = {'server': jira_server}
 jira=JIRA(options=jiraOptions, basic_auth=(my_email, jira_api))        
 
-#Query linked ServiceNow ticket Number and link
-snow_JQL = "project=REPORT AND TYPE=Task AND updatedDate > startofDay('-8d')"
-snow_issues=jira.search_issues(snow_JQL, maxResults=0)
-snow_issue_dict={}
-item = 1  
-for snow_issue in snow_issues:
-    if len(jira.remote_links(snow_issue))==0:
-        continue
-    snow_issue_link=vars(jira.remote_links(snow_issue)[0])['raw']['object']['url']
-    snow_issue_ticket=vars(jira.remote_links(snow_issue)[0])['raw']['object']['title']
-    snow_issue = snow_issue.key
+#Query Epics details
+epicJQL = "project=REPORT AND type=Epic"
+epics=jira.search_issues(epicJQL, maxResults=0)
+df_epic_details=pd.DataFrame()
+for epic in epics:
+    epic_dict=jira.issue(epic.key).raw['fields']
+    df_epic=pd.json_normalize(epic_dict)
+    df_epic['Epic']=epic.key
+    df_epic_details=df_epic_details._append(df_epic)
 
-    snow_issue_dict[item] = {
-    'SNOW Link': snow_issue_link,
-    'Ticket No': snow_issue_ticket,
-    'Issue': snow_issue
-     }
-    item = item + 1
-    
-df_snow_issues = pd.DataFrame.from_dict(snow_issue_dict, orient='index', columns=['Issue','Ticket No','SNOW Link'])
+df_epic_clean= df_epic_details[['created',  'labels',  'updated', 'description','customfield_10053.value','customfield_10054.value', 'customfield_10056.value', 'summary',  'assignee.displayName','status.name','priority.name','Epic']]
+df_epic_clean.columns=['Created',  'Labels',  'Updated',  'Description',  'Report Tool' ,'Backup', 'Workspace','Summary', 'Assignee','Status', 'Priority','Epic']    
 
 #Query issue details
 strJQL = "project=REPORT AND updatedDate > startofDay('-8d')"
@@ -83,3 +75,73 @@ for log_issue in log_issues:
                 count = count + 1
     
 df_log_issues = pd.DataFrame.from_dict(log_issue_dict, orient='index', columns=['Change Date','From','To','Issue'])
+
+#Query time spend
+logJQL = "project=REPORT AND TYPE=Task"
+issues=jira.search_issues(logJQL, maxResults=0)
+worklogs_dict = {}
+item = 1
+for issue in issues:
+    issue_id = issue.key
+    for worklog in issue.fields.worklog.worklogs:
+        
+        # Initialize variables to None
+        author = time_spent = comment = created = None
+        
+        # Check if 'author' exists
+        if hasattr(worklog.author, 'displayName') and worklog.author.displayName:
+            author = worklog.author.displayName
+        
+        # Check if 'timeSpent' exists
+        if hasattr(worklog, 'timeSpentSeconds') and worklog.timeSpentSeconds:
+            time_spent = worklog.timeSpentSeconds
+        
+        # Check if 'comment' exists (this attribute might not be present)
+        if hasattr(worklog, 'comment') and worklog.comment:
+            comment = worklog.comment
+        
+        # Check if 'created' exists
+        if hasattr(worklog, 'created') and worklog.created:
+            created = worklog.created
+            
+        # Check if 'started' exists
+        if hasattr(worklog, 'started') and worklog.started:
+            started = worklog.started    
+
+        # Check if 'updated' exists
+        if hasattr(worklog, 'updated') and worklog.updated:
+            updated = worklog.updated             
+        
+        # Proceed only if all necessary fields are present
+            worklogs_dict[item] = {
+                'Author': author,
+                'Time Spent': time_spent,
+                'Comment': comment,
+                'Created': created,
+                'Started': started,          
+                'Updated': updated,                
+                'Issue': issue_id
+            }
+            item += 1
+df_worklogs = pd.DataFrame.from_dict(worklogs_dict, orient='index', columns=['Author','Time Spent','Comment','Created','Started','Updated','Issue']) 
+
+#Query Weblink
+link_JQL = "project=REPORT AND TYPE in (Task, Epic) "
+link_issues=jira.search_issues(link_JQL, maxResults=0)
+link_dict={}
+item = 1  
+for link_issue in link_issues:
+    if len(jira.remote_links(link_issue))==0:
+        continue
+    link=vars(jira.remote_links(link_issue)[0])['raw']['object']['url']
+    link_text=vars(jira.remote_links(link_issue)[0])['raw']['object']['title']
+    link_issue = link_issue.key
+
+    link_dict[item] = {
+    'URL': link,
+    'Link Text': link_text,
+    'Issue': link_issue
+     }
+    item = item + 1 
+df_links = pd.DataFrame.from_dict(link_dict, orient='index', columns=['Issue','Link Text', 'URL'])
+df_links.to_csv('C:/Users/azheng/Downloads/Python/links.csv', mode='w', index=False)
